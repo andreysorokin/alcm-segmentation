@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 
 
@@ -57,3 +58,12 @@ def get_avg_height_from_profile(hist):
     if len(lowers) != len(uppers) or len(uppers) == 0:
         return 0
     return np.average(np.array(lowers) - np.array(uppers))
+
+
+def color_code_enumerated(enumerated):
+    label_hue = np.uint8(200 * enumerated / np.max(enumerated))
+    blank_ch = 255 * np.ones_like(label_hue)
+    labeled_img = cv2.merge([label_hue, blank_ch, blank_ch])
+    labeled_img = cv2.cvtColor(labeled_img, cv2.COLOR_HSV2BGR)
+    labeled_img[label_hue == 0] = 0
+    return labeled_img

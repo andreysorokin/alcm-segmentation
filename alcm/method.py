@@ -3,6 +3,7 @@ import numpy as np
 
 from .utils import get_avg_height_sliced
 
+
 def get_text_components(img_orig):
     """
     :param img_orig: must be a 300dpi image in any format compatible with opencv, black text on white background!
@@ -44,7 +45,7 @@ def get_text_components(img_orig):
     # cv2.imshow('ALCM', overlay)
 
 
-def enumerate_components(img_orig, thresholded_alcm):
+def enumerate_components(img_orig, thresholded_alcm, combine_with_mask=False):
     """
     This will threshold the original image, use connected components of thresholded alcm as seed points and add all connected points of original image
     :param img_orig: original image, black text on white background
@@ -59,7 +60,7 @@ def enumerate_components(img_orig, thresholded_alcm):
     output_map = np.zeros(img_orig.shape, dtype=int)
     merged_original_labels = set()
     current_component_id = 1
-    for label_idx in range(1, N+1):
+    for label_idx in range(1, N + 1):
         # Step 1: select all non-zero pixels of original image
         unique_labels = np.unique(labels_orig[labels_alcm == label_idx])
 
@@ -69,7 +70,44 @@ def enumerate_components(img_orig, thresholded_alcm):
                 merged_original_labels.add(ul)
                 output_map[np.where(labels_orig == ul)] = current_component_id
 
+        if combine_with_mask:
+            output_map[np.where(labels_alcm == label_idx)] = current_component_id
+
         if len(merged_original_labels) > before_size:
             current_component_id += 1
 
     return output_map
+
+
+# Avg text height based on averaged fitted ellipses around words and/or lines
+def get_avg_text_height(alcm_th):
+    """
+    :param alcm_th: thresholded alcm image
+    :return: avg height or None
+    """
+
+    # Step 1. Enumerate connected components
+    _, labels_orig = cv2.connectedComponents(alcm_th)
+    N = np.max(labels_orig)
+    contours_count = 0
+    avg_height = 0
+    # Step 2. Find orientation of each connected component
+    for i in range(1, N + 1):
+        # Step 2.1 Select component and borders
+        blob_position = np.where(labels_orig == i)
+        h_min, h_max = np.min(blob_position[0]), np.max(blob_position[0])
+        w_min, w_max = np.min(blob_position[1]), np.max(blob_position[1])
+        img_stub = np.zeros((h_max - h_min + 1, w_max - w_min + 1), dtype=np.uint8)
+        stub_position = (blob_position[0] - h_min, blob_position[1] - w_min)
+        img_stub[stub_position] = 1
+        # Step 2.2 Find contours
+        contours, _ = cv2.findContours(img_stub, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if len(contours[0]) < 5:
+            continue
+        (x, y), (MA, ma), angle = cv2.fitEllipse(contours[0])
+        # small ellipse axis
+        avg_height += MA
+        contours_count += 1
+        # now image
+
+    return int(avg_height / contours_count) if contours_count > 0 else None

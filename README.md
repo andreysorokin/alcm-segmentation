@@ -4,6 +4,17 @@
 
 All the samples in /demo directory are taken from http://www.fki.inf.unibe.ch/databases/iam-handwriting-database
 
+## Demo 
+
+### Calculate avg height of a handwritten text line
+
+    python features-samples.py -i demo/p03-080.png
+    Detected average height of text line in pixels: 16
+
+    python features-samples.py -i demo/p03-189.png
+    Detected average height of text line in pixels: 30
+
+
 ## Bibliography
 
 The idea and method description are given in:
